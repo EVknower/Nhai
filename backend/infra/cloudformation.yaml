@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  NHAI Face Recognition System - Full AWS Infrastructure
+  Deploys: DynamoDB table, Lambda sync function, IAM roles, CloudWatch log groups
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+    Description: Deployment environment
+
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    AllowedValues: [7, 14, 30, 60, 90, 180, 365]
+    Description: CloudWatch log retention in days
+
+  AuthTableReadCapacity:
+    Type: Number
+    Default: 5
+    MinValue: 1
+
+  AuthTableWriteCapacity:
+    Type: Number
+    Default: 5
+    MinValue: 1
+
+Globals: {}
+
+Resources:
+
+  # ─── DynamoDB Table ───────────────────────────────────────────────────────────
+
+  NhaiAuthLogsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub 'NhaiAuthLogs-${Environment}'
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: !Ref AuthTableReadCapacity
+        WriteCapacityUnits: !Ref AuthTableWriteCapacity
+      AttributeDefinitions:
+        - AttributeName: logId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+        - AttributeName: deviceId
+          AttributeType: S
+        - AttributeName: result
+          AttributeType: S
+      KeySchema:
+        - AttributeName: logId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: DeviceIndex
+          KeySchema:
+            - AttributeName: deviceId
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 2
+            WriteCapacityUnits: 2
+        - IndexName: ResultIndex
+          KeySchema:
+            - AttributeName: result
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 2
+            WriteCapacityUnits: 2
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: NHAI-FaceRecognition
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ─── IAM Role for Lambda ──────────────────────────────────────────────────────
+
+  SyncHandlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'NhaiSyncHandlerRole-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: NhaiDynamoDBWritePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                  - dynamodb:DescribeTable
+                Resource:
+                  - !GetAtt NhaiAuthLogsTable.Arn
+                  - !Sub '${NhaiAuthLogsTable.Arn}/index/*'
+      Tags:
+        - Key: Project
+          Value: NHAI-FaceRecognition
+
+  # ─── Lambda Function ──────────────────────────────────────────────────────────
+
+  SyncHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'NhaiSyncHandler-${Environment}'
+      Description: 'NHAI Face Recognition - Receives auth log batches from mobile devices'
+      Runtime: nodejs18.x
+      Handler: syncHandler.handler
+      Role: !GetAtt SyncHandlerRole.Arn
+      Code:
+        ZipFile: |
+          // Placeholder — deploy actual code via AWS CLI or CI/CD
+          exports.handler = async () => ({ statusCode: 200, body: 'OK' });
+      MemorySize: 256
+      Timeout: 30
+      Environment:
+        Variables:
+          AUTH_LOGS_TABLE: !Ref NhaiAuthLogsTable
+          NODE_ENV: !Ref Environment
+      ReservedConcurrentExecutions: 10
+      Tags:
+        - Key: Project
+          Value: NHAI-FaceRecognition
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ─── Lambda Function URL (public HTTPS endpoint, no API Gateway needed) ───────
+
+  SyncHandlerFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref SyncHandlerFunction
+      AuthType: NONE
+      Cors:
+        AllowCredentials: false
+        AllowHeaders:
+          - Content-Type
+          - X-Device-Id
+          - X-App-Version
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowOrigins:
+          - '*'
+        MaxAge: 86400
+
+  SyncHandlerFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SyncHandlerFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+
+  # ─── CloudWatch Log Group ─────────────────────────────────────────────────────
+
+  SyncHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/NhaiSyncHandler-${Environment}'
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Project
+          Value: NHAI-FaceRecognition
+
+  # ─── CloudWatch Alarms ────────────────────────────────────────────────────────
+
+  SyncHandlerErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'NhaiSyncHandler-Errors-${Environment}'
+      AlarmDescription: 'Alert when sync handler error rate exceeds threshold'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SyncHandlerFunction
+      TreatMissingData: notBreaching
+
+  SyncHandlerThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'NhaiSyncHandler-Throttles-${Environment}'
+      AlarmDescription: 'Alert on Lambda throttles — consider increasing reserved concurrency'
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SyncHandlerFunction
+      TreatMissingData: notBreaching
+
+Outputs:
+
+  SyncEndpointUrl:
+    Description: HTTPS endpoint for mobile app sync (set as SYNC_ENDPOINT in app config)
+    Value: !GetAtt SyncHandlerFunctionUrl.FunctionUrl
+    Export:
+      Name: !Sub 'NhaiSyncEndpoint-${Environment}'
+
+  AuthLogsTableName:
+    Description: DynamoDB table name for auth logs
+    Value: !Ref NhaiAuthLogsTable
+    Export:
+      Name: !Sub 'NhaiAuthLogsTable-${Environment}'
+
+  AuthLogsTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt NhaiAuthLogsTable.Arn
+
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt SyncHandlerFunction.Arn

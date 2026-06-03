@@ -1,0 +1,23 @@
+{
+  "name": "nhai-backend",
+  "version": "1.0.0",
+  "description": "NHAI Face Recognition System - Backend Lambda + DynamoDB",
+  "main": "lambda/syncHandler.js",
+  "scripts": {
+    "deploy": "aws cloudformation deploy --template-file infra/cloudformation.yaml --stack-name nhai-face-recognition --capabilities CAPABILITY_IAM --region ap-south-1",
+    "package": "zip -r lambda.zip lambda/ node_modules/",
+    "test": "node tests/syncHandler.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.400.0",
+    "@aws-sdk/lib-dynamodb": "^3.400.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "aws-sdk-mock": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "UNLICENSED"
+}
