@@ -16,52 +16,52 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import {Camera, useCameraDevices, useFrameProcessor} from 'react-native-vision-camera';
-import {runOnJS} from 'react-native-reanimated';
-import {v4 as uuidv4} from 'uuid';
+import { Camera, useCameraDevice, useFrameProcessor } from 'react-native-vision-camera';
+import { runOnJS } from 'react-native-reanimated';
+import { v4 as uuidv4 } from 'uuid';
 import FaceRecognitionService from '../services/FaceRecognitionService';
-import LivenessService, {LivenessState} from '../services/LivenessService';
+import LivenessService, { LivenessState } from '../services/LivenessService';
 import DatabaseService from '../services/DatabaseService';
 import SyncService from '../services/SyncService';
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
 const COLORS = {
-  background:    '#0A0A0F',
-  surface:       '#12121A',
-  card:          '#1A1A28',
-  border:        '#2A2A3D',
-  primary:       '#FF6B00',
-  primaryLight:  '#FF8C00',
-  blue:          '#0066CC',
-  blueLight:     '#4A9FFF',
-  gold:          '#FFB800',
-  white:         '#FFFFFF',
-  textPrimary:   '#F0F0F8',
+  background: '#0A0A0F',
+  surface: '#12121A',
+  card: '#1A1A28',
+  border: '#2A2A3D',
+  primary: '#FF6B00',
+  primaryLight: '#FF8C00',
+  blue: '#0066CC',
+  blueLight: '#4A9FFF',
+  gold: '#FFB800',
+  white: '#FFFFFF',
+  textPrimary: '#F0F0F8',
   textSecondary: '#888899',
-  success:       '#10B981',
-  danger:        '#EF4444',
-  warning:       '#F59E0B',
-  overlay:       'rgba(10,10,15,0.92)',
+  success: '#10B981',
+  danger: '#EF4444',
+  warning: '#F59E0B',
+  overlay: 'rgba(10,10,15,0.92)',
 };
 
 // ── Verification result enum ──────────────────────────────────────────────────
 export const VERIFICATION_RESULT = {
-  PENDING:        'PENDING',
-  LIVENESS_FAIL:  'LIVENESS_FAIL',
-  MATCH:          'MATCH',
-  NO_MATCH:       'NO_MATCH',
-  ERROR:          'ERROR',
+  PENDING: 'PENDING',
+  LIVENESS_FAIL: 'LIVENESS_FAIL',
+  MATCH: 'MATCH',
+  NO_MATCH: 'NO_MATCH',
+  ERROR: 'ERROR',
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DEVICE_ID = 'NHAI_DEVICE_001';
 
 // ── LivenessBadges sub-component ─────────────────────────────────────────────
-const LivenessBadges = ({currentState}) => {
+const LivenessBadges = ({ currentState }) => {
   const steps = [
-    {state: LivenessState.BLINK,  icon: '👁️', label: 'Blink'},
-    {state: LivenessState.SMILE,  icon: '😊', label: 'Smile'},
-    {state: LivenessState.TURN,   icon: '↔️', label: 'Turn'},
+    { state: LivenessState.BLINK, icon: '👁️', label: 'Blink' },
+    { state: LivenessState.SMILE, icon: '😊', label: 'Smile' },
+    { state: LivenessState.TURN, icon: '↔️', label: 'Turn' },
   ];
 
   const stateOrder = [
@@ -76,22 +76,22 @@ const LivenessBadges = ({currentState}) => {
   return (
     <View style={styles.badgesRow}>
       {steps.map((step, i) => {
-        const stepIndex  = stateOrder.indexOf(step.state);
-        const isDone     = currentIndex > stepIndex;
-        const isActive   = currentIndex === stepIndex;
+        const stepIndex = stateOrder.indexOf(step.state);
+        const isDone = currentIndex > stepIndex;
+        const isActive = currentIndex === stepIndex;
         return (
           <View
             key={step.state}
             style={[
               styles.badge,
-              isDone   && styles.badgeDone,
+              isDone && styles.badgeDone,
               isActive && styles.badgeActive,
             ]}>
             <Text style={styles.badgeIcon}>{isDone ? '✅' : step.icon}</Text>
             <Text
               style={[
                 styles.badgeLabel,
-                isDone   && styles.badgeLabelDone,
+                isDone && styles.badgeLabelDone,
                 isActive && styles.badgeLabelActive,
               ]}>
               {step.label}
@@ -111,39 +111,39 @@ const ResultContent = ({
   onRetry,
   onHome,
 }) => {
-  const isMatch  = result === VERIFICATION_RESULT.MATCH;
-  const isFail   = result === VERIFICATION_RESULT.LIVENESS_FAIL;
-  const isNoMatch= result === VERIFICATION_RESULT.NO_MATCH;
-  const isError  = result === VERIFICATION_RESULT.ERROR;
+  const isMatch = result === VERIFICATION_RESULT.MATCH;
+  const isFail = result === VERIFICATION_RESULT.LIVENESS_FAIL;
+  const isNoMatch = result === VERIFICATION_RESULT.NO_MATCH;
+  const isError = result === VERIFICATION_RESULT.ERROR;
 
   const icon =
-    isMatch   ? '✅' :
-    isFail    ? '🚫' :
-    isNoMatch ? '❌' :
-    isError   ? '⚠️' : '❓';
+    isMatch ? '✅' :
+      isFail ? '🚫' :
+        isNoMatch ? '❌' :
+          isError ? '⚠️' : '❓';
 
   const title =
-    isMatch   ? 'Identity Verified'       :
-    isFail    ? 'Liveness Check Failed'   :
-    isNoMatch ? 'Person Not Recognised'   :
-    isError   ? 'System Error'            : 'Unknown';
+    isMatch ? 'Identity Verified' :
+      isFail ? 'Liveness Check Failed' :
+        isNoMatch ? 'Person Not Recognised' :
+          isError ? 'System Error' : 'Unknown';
 
   const subtitle =
-    isMatch   ? 'Access granted. Have a safe journey.' :
-    isFail    ? 'Please try again and follow the on-screen prompts.' :
-    isNoMatch ? 'Face does not match any enrolled employee.' :
-    isError   ? 'An unexpected error occurred. Contact admin.' : '';
+    isMatch ? 'Access granted. Have a safe journey.' :
+      isFail ? 'Please try again and follow the on-screen prompts.' :
+        isNoMatch ? 'Face does not match any enrolled employee.' :
+          isError ? 'An unexpected error occurred. Contact admin.' : '';
 
   const titleColor =
-    isMatch   ? COLORS.success :
-    isFail    ? COLORS.danger  :
-    isNoMatch ? COLORS.danger  :
-    isError   ? COLORS.warning : COLORS.white;
+    isMatch ? COLORS.success :
+      isFail ? COLORS.danger :
+        isNoMatch ? COLORS.danger :
+          isError ? COLORS.warning : COLORS.white;
 
   return (
     <View style={styles.resultContent}>
       <Text style={styles.resultIcon}>{icon}</Text>
-      <Text style={[styles.resultTitle, {color: titleColor}]}>{title}</Text>
+      <Text style={[styles.resultTitle, { color: titleColor }]}>{title}</Text>
       <Text style={styles.resultSubtitle}>{subtitle}</Text>
 
       {/* Person card — only on MATCH */}
@@ -175,8 +175,8 @@ const ResultContent = ({
                       confidence > 0.8
                         ? COLORS.success
                         : confidence > 0.6
-                        ? COLORS.warning
-                        : COLORS.danger,
+                          ? COLORS.warning
+                          : COLORS.danger,
                   },
                 ]}
               />
@@ -199,7 +199,7 @@ const ResultContent = ({
 };
 
 // ── PermissionDeniedView ──────────────────────────────────────────────────────
-const PermissionDeniedView = ({onHome}) => (
+const PermissionDeniedView = ({ onHome }) => (
   <View style={styles.centredView}>
     <Text style={styles.centredIcon}>📷</Text>
     <Text style={styles.centredTitle}>Camera Permission Required</Text>
@@ -213,7 +213,7 @@ const PermissionDeniedView = ({onHome}) => (
 );
 
 // ── LoadingView ───────────────────────────────────────────────────────────────
-const LoadingView = ({message = 'Initialising…'}) => (
+const LoadingView = ({ message = 'Initialising…' }) => (
   <View style={styles.centredView}>
     <ActivityIndicator size="large" color={COLORS.primary} />
     <Text style={styles.loadingText}>{message}</Text>
@@ -221,32 +221,30 @@ const LoadingView = ({message = 'Initialising…'}) => (
 );
 
 // ── VerifyScreen ──────────────────────────────────────────────────────────────
-const VerifyScreen = ({navigation}) => {
+const VerifyScreen = ({ navigation }) => {
   // ── State ──────────────────────────────────────────────────────────────────
-  const [hasPermission,      setHasPermission]      = useState(null);
-  const [isModelReady,       setIsModelReady]       = useState(false);
-  const [isActive,           setIsActive]           = useState(true);
-  const [livenessState,      setLivenessState]      = useState(LivenessState.BLINK);
-  const [challengePrompt,    setChallengePrompt]    = useState('Blink your eyes slowly…');
-  const [headTurnDirection,  setHeadTurnDirection]  = useState('left');
+  const [hasPermission, setHasPermission] = useState(null);
+  const [isModelReady, setIsModelReady] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [livenessState, setLivenessState] = useState(LivenessState.BLINK);
+  const [challengePrompt, setChallengePrompt] = useState('Blink your eyes slowly…');
+  const [headTurnDirection, setHeadTurnDirection] = useState('left');
   const [verificationResult, setVerificationResult] = useState(VERIFICATION_RESULT.PENDING);
-  const [matchedPerson,      setMatchedPerson]      = useState(null);
-  const [confidence,         setConfidence]         = useState(0);
-  const [isProcessing,       setIsProcessing]       = useState(false);
-  const [enrollments,        setEnrollments]        = useState([]);
+  const [matchedPerson, setMatchedPerson] = useState(null);
+  const [confidence, setConfidence] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [enrollments, setEnrollments] = useState([]);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
-  const resultScale    = useRef(new Animated.Value(0)).current;
-  const progressAnim   = useRef(new Animated.Value(0)).current;
+  const resultScale = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const challengeSlide = useRef(new Animated.Value(40)).current;
-  const lastFrameRef   = useRef(null);
-  const isFinished     = useRef(false);
+  const lastFrameRef = useRef(null);
+  const isFinished = useRef(false);
 
   // ── Camera ─────────────────────────────────────────────────────────────────
-  const devices = useCameraDevices();
-  const device  = devices.front;
-
+  const device = useCameraDevice('front');
   // ── Init screen ────────────────────────────────────────────────────────────
   const initScreen = useCallback(async () => {
     try {
@@ -279,7 +277,7 @@ const VerifyScreen = ({navigation}) => {
           }).start();
         },
         onComplete: handleLivenessPassed,
-        onFail:     handleLivenessFailed,
+        onFail: handleLivenessFailed,
       });
 
       setIsModelReady(true);
@@ -312,15 +310,15 @@ const VerifyScreen = ({navigation}) => {
     setVerificationResult(result);
 
     Animated.parallel([
-      Animated.timing(overlayOpacity, {toValue: 1, duration: 350, useNativeDriver: true}),
-      Animated.spring(resultScale,    {toValue: 1, tension: 60, friction: 9, useNativeDriver: true}),
+      Animated.timing(overlayOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.spring(resultScale, { toValue: 1, tension: 60, friction: 9, useNativeDriver: true }),
     ]).start();
   }, [overlayOpacity, resultScale]);
 
   // ── Liveness passed → face matching ───────────────────────────────────────
   const handleLivenessPassed = useCallback(async () => {
     if (isFinished.current) return;
-    if (isProcessing)       return;
+    if (isProcessing) return;
     setIsProcessing(true);
 
     try {
@@ -341,14 +339,14 @@ const VerifyScreen = ({navigation}) => {
       if (match && match.similarity >= 0.55) {
         // ── SUCCESS ──
         await DatabaseService.saveVerificationLog({
-          id:         logId,
-          deviceId:   DEVICE_ID,
-          personId:   match.personId,
-          result:     'MATCH',
+          id: logId,
+          deviceId: DEVICE_ID,
+          personId: match.personId,
+          result: 'MATCH',
           confidence: match.similarity,
           timestamp,
         });
-        await SyncService.queueRecord({id: logId, type: 'verification', timestamp});
+        await SyncService.queueRecord({ id: logId, type: 'verification', timestamp });
 
         setMatchedPerson(match.person);
         setConfidence(match.similarity);
@@ -357,14 +355,14 @@ const VerifyScreen = ({navigation}) => {
       } else {
         // ── NO MATCH ──
         await DatabaseService.saveVerificationLog({
-          id:         logId,
-          deviceId:   DEVICE_ID,
-          personId:   null,
-          result:     'NO_MATCH',
+          id: logId,
+          deviceId: DEVICE_ID,
+          personId: null,
+          result: 'NO_MATCH',
           confidence: match?.similarity ?? 0,
           timestamp,
         });
-        await SyncService.queueRecord({id: logId, type: 'verification', timestamp});
+        await SyncService.queueRecord({ id: logId, type: 'verification', timestamp });
 
         Vibration.vibrate(Platform.OS === 'android' ? [0, 300, 100, 300] : 800);
         showResultAnimation(VERIFICATION_RESULT.NO_MATCH);
@@ -385,14 +383,14 @@ const VerifyScreen = ({navigation}) => {
       const logId = uuidv4();
       const timestamp = new Date().toISOString();
       await DatabaseService.saveVerificationLog({
-        id:       logId,
+        id: logId,
         deviceId: DEVICE_ID,
         personId: null,
-        result:   'LIVENESS_FAIL',
+        result: 'LIVENESS_FAIL',
         confidence: 0,
         timestamp,
       });
-      await SyncService.queueRecord({id: logId, type: 'verification', timestamp});
+      await SyncService.queueRecord({ id: logId, type: 'verification', timestamp });
     } catch (err) {
       console.warn('[VerifyScreen] handleLivenessFailed log error:', err);
     }
@@ -456,7 +454,7 @@ const VerifyScreen = ({navigation}) => {
   const turnArrow = headTurnDirection === 'left' ? '←' : '→';
 
   // ── Derived flags ──────────────────────────────────────────────────────────
-  const isDone     = verificationResult !== VERIFICATION_RESULT.PENDING;
+  const isDone = verificationResult !== VERIFICATION_RESULT.PENDING;
   const isTurnStep = livenessState === LivenessState.TURN;
 
   // ── Render guards ──────────────────────────────────────────────────────────
@@ -478,8 +476,8 @@ const VerifyScreen = ({navigation}) => {
             hasPermission === null
               ? 'Requesting camera permission…'
               : !isModelReady
-              ? 'Loading face recognition model…'
-              : 'Opening camera…'
+                ? 'Loading face recognition model…'
+                : 'Opening camera…'
           }
         />
       </View>
@@ -514,7 +512,7 @@ const VerifyScreen = ({navigation}) => {
       {/* ── Challenge box (liveness badges + prompt) ── */}
       {!isDone && (
         <Animated.View
-          style={[styles.challengeBox, {transform: [{translateY: challengeSlide}]}]}>
+          style={[styles.challengeBox, { transform: [{ translateY: challengeSlide }] }]}>
           <LivenessBadges currentState={livenessState} />
           <Text style={styles.challengePrompt}>{challengePrompt}</Text>
           {isTurnStep && (
@@ -534,10 +532,10 @@ const VerifyScreen = ({navigation}) => {
       {/* ── Result overlay ── */}
       {isDone && (
         <Animated.View
-          style={[styles.resultOverlay, {opacity: overlayOpacity}]}
+          style={[styles.resultOverlay, { opacity: overlayOpacity }]}
           pointerEvents="auto">
           <Animated.View
-            style={[styles.resultCard, {transform: [{scale: resultScale}]}]}>
+            style={[styles.resultCard, { transform: [{ scale: resultScale }] }]}>
             <ResultContent
               result={verificationResult}
               matchedPerson={matchedPerson}
@@ -724,7 +722,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 28,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 10},
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 12,
